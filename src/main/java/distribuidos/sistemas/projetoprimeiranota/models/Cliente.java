@@ -17,7 +17,7 @@ public class Cliente {
 
     private void realizarConexao() throws IOException {
         try {
-            socket = new Socket(this.hostAdress, this.port);
+            socket = new Socket(hostAdress, port);
             System.out.println("Cliente: Conexão com o servidor bem sucedida!");
         } catch (UnknownHostException error) {
             System.out.println("Cliente: Conexão com o servidor mal sucedida!");
@@ -57,11 +57,12 @@ public class Cliente {
     public void requerirDownload(String nomeArquivo) throws IOException {
         realizarConexao();
         try {
-            DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
-            dataOutputStream.writeUTF(nomeArquivo);
+            OutputStream outputStream = new DataOutputStream(socket.getOutputStream());
+            byte[] bytes = nomeArquivo.getBytes(StandardCharsets.UTF_8);
+            outputStream.write(bytes);
 
-            dataOutputStream.flush();
-            dataOutputStream.close();
+            outputStream.flush();
+            outputStream.close();
         } catch (NullPointerException error) {
             System.out.println("Cliente: Conexão com servidor não encontrada");
             System.err.println(error);
@@ -71,7 +72,7 @@ public class Cliente {
     public void receberDownload(String caminhoArquivoSaida) throws IOException {
         realizarConexao();
         try {
-            DataInputStream dataInputStream = new DataInputStream(this.socket.getInputStream());
+            DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
             String nomeArquivo = dataInputStream.readUTF();
             FileOutputStream fileOutputStream = new FileOutputStream(caminhoArquivoSaida + nomeArquivo);
 

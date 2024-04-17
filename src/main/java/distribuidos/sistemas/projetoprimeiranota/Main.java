@@ -10,13 +10,9 @@ public class Main {
         Servidor servidor = new Servidor();
         Cliente cliente = new Cliente("localhost", 8080);
 
-        //Realiza Operação
         enviarArquivoClienteParaServidor(servidor, cliente);
-        //fazerDownloadArquivoDoServidor(servidor, cliente);
+        fazerDownloadArquivoDoServidor(servidor, cliente);
         excluirArquivoServidor(servidor, cliente);
-
-        //Encerra conexão
-        servidor.realizarOperacao(Servidor.Operation.ENCERRAR_CONEXAO);
     }
 
     static void enviarArquivoClienteParaServidor(Servidor servidor, Cliente cliente) throws IOException {
@@ -27,7 +23,7 @@ public class Main {
     static void fazerDownloadArquivoDoServidor(Servidor servidor, Cliente cliente) throws IOException {
         cliente.requerirDownload("imagem.jpg");
         servidor.realizarOperacao(Servidor.Operation.ENVIAR);
-        cliente.receberDownload("src/main/resources/distribuidos/sistemas/projetoprimeiranota/imagem.jpg");
+        cliente.receberDownload("src/main/resources/distribuidos/sistemas/projetoprimeiranota/Downloaded-");
     }
 
     static void excluirArquivoServidor(Servidor servidor, Cliente cliente) throws IOException {

@@ -6,8 +6,6 @@ import java.net.Socket;
 
 public class Servidor {
     public enum Operation {
-        INICIAR_CONEXAO,
-        ENCERRAR_CONEXAO,
         ENVIAR,
         RECEBER,
         EXCLUIR
@@ -22,12 +20,7 @@ public class Servidor {
     public void realizarOperacao(Operation operation) {
         Thread thread = new Thread(() -> {
             try {
-                if (operation.equals(Operation.ENCERRAR_CONEXAO)) {
-                    synchronized (socket) {
-                        encerrarConexao(socket);
-                    }
-                }
-                else if (requisitarConexao()) {
+                if (requisitarConexao()) {
                     synchronized (socket) {
                         switch (operation) {
                             case ENVIAR -> enviar(socket, "src/main/resources/distribuidos/sistemas/projetoprimeiranota/files/");
@@ -53,24 +46,17 @@ public class Servidor {
         return true;
     }
 
-    private void encerrarConexao(Socket socket) throws IOException {
-        try {
-            serverSocket.close();
-            if(socket != null) socket.close();
-            System.out.println("Servidor: Encerramento de conexão bem sucedido!");
-        } catch (NullPointerException error) {
-            System.out.println("Servidor: Encerramento de conexão mal sucedido!");
-            System.err.println(error);
-        }
-    }
+    private void enviar(Socket socket, String caminhoArquivoLocal) throws IOException {
+        String nomeArquivo = receberNomeArquivo(socket);
+        if (!verificarArquivoSalvo(nomeArquivo)) return;
 
-    private void enviar(Socket socket, String caminhoArquivoEntrada) throws IOException {
         try {
-            FileInputStream fileInputStream = new FileInputStream(caminhoArquivoEntrada);
+            socket = serverSocket.accept();
+            FileInputStream fileInputStream = new FileInputStream(caminhoArquivoLocal + nomeArquivo);
             DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
             System.out.println("Servidor: Inputação de arquivo bem sucedida!");
 
-            dataOutputStream.writeUTF(new File(caminhoArquivoEntrada).getName());
+            dataOutputStream.writeUTF(nomeArquivo);
 
             byte[] buffer = new byte[1024];
             int bytesRead;
@@ -111,14 +97,23 @@ public class Servidor {
     }
 
     private void excluir(Socket socket) throws IOException {
-        InputStream inputStream;
+        String nomeArquivo = receberNomeArquivo(socket);
 
+        if (verificarArquivoSalvo(nomeArquivo)) {
+            File file = new File("src/main/resources/distribuidos/sistemas/projetoprimeiranota/files/" + nomeArquivo);
+            file.delete();
+            System.out.println("Servidor: Exclusão de arquivo bem sucedida!");
+        }
+    }
+
+    private String receberNomeArquivo(Socket socket) throws IOException {
+        InputStream inputStream;
         try {
             inputStream = socket.getInputStream();
         } catch (NullPointerException error) {
-            System.out.println("Servidor: Exclusão de arquivo mau sucedida!");
+            System.out.println("Servidor: Captura de nome do arquivo mau sucedido!");
             System.err.println(error);
-            return;
+            return null;
         }
 
         byte[] buffer = new byte[1024];
@@ -129,23 +124,18 @@ public class Servidor {
             nomeArquivo.append(new String(buffer, 0, bytesRead));
         }
 
-        if (verificaArquivoSalvo(nomeArquivo.toString())) {
-            File file = new File("src/main/resources/distribuidos/sistemas/projetoprimeiranota/files/" + nomeArquivo);
-            file.delete();
-            System.out.println("Servidor: Exclusão de arquivo bem sucedida!");
-        }
-
         inputStream.close();
+        return nomeArquivo.toString();
     }
 
-    private boolean verificaArquivoSalvo(String normeArquivo) {
+    private boolean verificarArquivoSalvo(String normeArquivo) {
         if (listarArquivosSalvos() != null) {
             for (File arquivo : listarArquivosSalvos()) if (arquivo.getName().equals(normeArquivo)) return true;
-            System.out.println("Servidor: Arquivo não encontrado!");
+            System.err.println("Servidor: Arquivo não encontrado!");
             return false;
         }
         else {
-            System.out.println("Servidor: Diretório de arquivos salvos inexistente ou vazio!");
+            System.err.println("Servidor: Diretório inexistente ou vazio!");
             return false;
         }
     }
