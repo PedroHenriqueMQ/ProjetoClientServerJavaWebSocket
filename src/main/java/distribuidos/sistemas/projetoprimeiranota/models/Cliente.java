@@ -15,36 +15,27 @@ public class Cliente {
         this.port = port;
     }
 
-    public void realizarConexao() throws IOException {
+    private void realizarConexao() throws IOException {
         try {
             socket = new Socket(this.hostAdress, this.port);
-            System.out.println("Conexão bem sucedida!");
+            System.out.println("Cliente: Conexão com o servidor bem sucedida!");
         } catch (UnknownHostException error) {
-            System.out.println("Conexão mal sucedida!");
-            System.err.println(error);
-        }
-    }
-
-    public void encerrarConexao() throws IOException {
-        try {
-            socket.close();
-            System.out.println("Encerramento de conexão bem sucedido!");
-        } catch (NullPointerException error) {
-            System.out.println("Encerramento de conexão mal sucedido!");
+            System.out.println("Cliente: Conexão com o servidor mal sucedida!");
             System.err.println(error);
         }
     }
 
     public void enviar(String caminhoArquivoEntrada) throws IOException {
+        realizarConexao();
         FileInputStream fileInputStream;
         DataOutputStream dataOutputStream;
 
         try {
             fileInputStream = new FileInputStream(caminhoArquivoEntrada);
             dataOutputStream = new DataOutputStream(this.socket.getOutputStream());
-            System.out.println("Inputação de arquivo bem sucedida!");
+            System.out.println("Cliente: Inputação de arquivo bem sucedida!");
         } catch (FileNotFoundException | NullPointerException error) {
-            System.out.println("Inputação de arquivo mal sucedida!");
+            System.out.println("Cliente: Inputação de arquivo mal sucedida!");
             System.err.println(error);
             return;
         }
@@ -64,6 +55,7 @@ public class Cliente {
     }
 
     public void requerirDownload(String nomeArquivo) throws IOException {
+        realizarConexao();
         try {
             DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
             dataOutputStream.writeUTF(nomeArquivo);
@@ -71,14 +63,14 @@ public class Cliente {
             dataOutputStream.flush();
             dataOutputStream.close();
         } catch (NullPointerException error) {
-            System.out.println("Conexão com servidor não encontrada");
+            System.out.println("Cliente: Conexão com servidor não encontrada");
             System.err.println(error);
         }
     }
 
     public void receberDownload(String caminhoArquivoSaida) throws IOException {
+        realizarConexao();
         try {
-            System.out.println("Tô por aqui");
             DataInputStream dataInputStream = new DataInputStream(this.socket.getInputStream());
             String nomeArquivo = dataInputStream.readUTF();
             FileOutputStream fileOutputStream = new FileOutputStream(caminhoArquivoSaida + nomeArquivo);
@@ -92,20 +84,21 @@ public class Cliente {
 
             fileOutputStream.close();
             dataInputStream.close();
-            System.out.println("Rebimento do arquivo bem sucedido!");
+            System.out.println("Cliente: Rebimento do arquivo bem sucedido!");
         } catch (FileNotFoundException | NullPointerException error) {
-            System.out.println("Rebimento do arquivo mau sucedido!");
+            System.out.println("Cliente: Rebimento do arquivo mau sucedido!");
             System.err.println(error);
         }
     }
 
     public void excluir(String nomeArquivo) throws IOException {
+        realizarConexao();
         OutputStream outputStream;
 
         try {
             outputStream = socket.getOutputStream();
         } catch (NullPointerException error) {
-            System.out.println("Exclusão de arquivo mau sucedida!");
+            System.out.println("Cliente: Exclusão de arquivo mau sucedida!");
             System.err.println(error);
             return;
         }

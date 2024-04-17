@@ -20,70 +20,55 @@ public class Servidor {
     }
 
     public void realizarOperacao(Operation operation) {
-        Thread thread = new Thread(
-            () -> {
-                try {
-                    switch (operation) {
-                        case INICIAR_CONEXAO -> iniciarConexao();
-                        case ENCERRAR_CONEXAO -> encerrarConexao();
-                        case ENVIAR -> {
-                            try {
-                                DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
-                                String nomeArquivo = dataInputStream.readUTF();
-
-                                dataInputStream.close();
-
-                                if (listarArquivosSalvos() != null) {
-                                    for (File arquivo : listarArquivosSalvos()) {
-                                        if (nomeArquivo.equals(arquivo.getName())) enviar(arquivo.getPath());
-                                        break;
-                                    }
-                                }
-                                else {
-                                    System.out.println("Diretório de arquivos salvos inexistente ou vazio!");
-                                    return;
-                                }
-                            } catch (NullPointerException error) {
-                                System.out.println("Inputação de arquivo mal sucedida!");
-                                System.err.println(error);
-                            }
-                        }
-                        case RECEBER -> receber("src/main/resources/distribuidos/sistemas/projetoprimeiranota/files/");
-                        case EXCLUIR -> excluir();
+        Thread thread = new Thread(() -> {
+            try {
+                if (operation.equals(Operation.ENCERRAR_CONEXAO)) {
+                    synchronized (socket) {
+                        encerrarConexao(socket);
                     }
-                } catch (IOException error) {
-                    System.out.println("Operação mal sucedida!");
-                    System.err.println(error);
-                    return;
                 }
-                System.out.println("Operação bem sucedida!");
+                else if (requisitarConexao()) {
+                    synchronized (socket) {
+                        switch (operation) {
+                            case ENVIAR -> enviar(socket, "src/main/resources/distribuidos/sistemas/projetoprimeiranota/files/");
+                            case RECEBER -> receber(socket, "src/main/resources/distribuidos/sistemas/projetoprimeiranota/files/");
+                            case EXCLUIR -> excluir(socket);
+                        }
+                    }
+                } else {
+                    System.out.println("Servidor: Conexão rejeitada.");
+                }
+            } catch (IOException error) {
+                System.out.println("Servidor: Operação mal sucedida!");
+                System.err.println(error);
             }
-        );
+        });
 
         thread.start();
     }
 
-    private synchronized void iniciarConexao() throws IOException {
+    private boolean requisitarConexao() throws IOException {
         socket = serverSocket.accept();
-        System.out.println("Inicialização de conexão bem sucedida!");
+        System.out.println("Servidor: Aceite de conexão bem sucedido!");
+        return true;
     }
 
-    private synchronized void encerrarConexao() throws IOException {
+    private void encerrarConexao(Socket socket) throws IOException {
         try {
             serverSocket.close();
-            socket.close();
-            System.out.println("Encerramento de conexão bem sucedido!");
+            if(socket != null) socket.close();
+            System.out.println("Servidor: Encerramento de conexão bem sucedido!");
         } catch (NullPointerException error) {
-            System.out.println("Encerramento de conexão mal sucedido!");
+            System.out.println("Servidor: Encerramento de conexão mal sucedido!");
             System.err.println(error);
         }
     }
 
-    private synchronized void enviar(String caminhoArquivoEntrada) throws IOException {
+    private void enviar(Socket socket, String caminhoArquivoEntrada) throws IOException {
         try {
             FileInputStream fileInputStream = new FileInputStream(caminhoArquivoEntrada);
             DataOutputStream dataOutputStream = new DataOutputStream(socket.getOutputStream());
-            System.out.println("Inputação de arquivo bem sucedida!");
+            System.out.println("Servidor: Inputação de arquivo bem sucedida!");
 
             dataOutputStream.writeUTF(new File(caminhoArquivoEntrada).getName());
 
@@ -98,12 +83,12 @@ public class Servidor {
             dataOutputStream.close();
             fileInputStream.close();
         } catch (FileNotFoundException | NullPointerException error) {
-            System.out.println("Inputação de arquivo mal sucedida!");
+            System.out.println("Servidor: Inputação de arquivo mal sucedida!");
             System.err.println(error);
         }
     }
 
-    private synchronized void receber(String caminhoArquivoSaida) throws IOException {
+    private void receber(Socket socket, String caminhoArquivoSaida) throws IOException {
         try {
             DataInputStream dataInputStream = new DataInputStream(socket.getInputStream());
             String nomeArquivo = dataInputStream.readUTF();
@@ -118,58 +103,58 @@ public class Servidor {
 
             fileOutputStream.close();
             dataInputStream.close();
-            System.out.println("Rebimento do arquivo bem sucedido!");
+            System.out.println("Servidor: Rebimento do arquivo bem sucedido!");
         } catch (FileNotFoundException | NullPointerException error) {
-            System.out.println("Rebimento do arquivo mau sucedido!");
+            System.out.println("Servidor: Rebimento do arquivo mau sucedido!");
             System.err.println(error);
         }
     }
 
-    private synchronized void excluir() throws IOException {
+    private void excluir(Socket socket) throws IOException {
         InputStream inputStream;
 
         try {
             inputStream = socket.getInputStream();
         } catch (NullPointerException error) {
-            System.out.println("Exclusão de arquivo mau sucedida!");
+            System.out.println("Servidor: Exclusão de arquivo mau sucedida!");
             System.err.println(error);
             return;
         }
 
         byte[] buffer = new byte[1024];
         int bytesRead;
-        StringBuilder caminhoArquivo = new StringBuilder();
+        StringBuilder nomeArquivo = new StringBuilder();
 
         while ((bytesRead = inputStream.read(buffer)) != -1) {
-            caminhoArquivo.append(new String(buffer, 0, bytesRead));
+            nomeArquivo.append(new String(buffer, 0, bytesRead));
         }
 
-        File file = new File(caminhoArquivo.toString());
-
-        if (listarArquivosSalvos() != null) {
-            for (File arquivo : listarArquivosSalvos()) {
-                if (file.equals(arquivo)) file.delete();
-            }
+        if (verificaArquivoSalvo(nomeArquivo.toString())) {
+            File file = new File("src/main/resources/distribuidos/sistemas/projetoprimeiranota/files/" + nomeArquivo);
+            file.delete();
+            System.out.println("Servidor: Exclusão de arquivo bem sucedida!");
         }
-        else {
-            System.out.println("Diretório de arquivos salvos inexistente ou vazio!");
-            return;
-        }
-        System.out.println("Exclusão de arquivo bem sucedida!");
 
         inputStream.close();
+    }
+
+    private boolean verificaArquivoSalvo(String normeArquivo) {
+        if (listarArquivosSalvos() != null) {
+            for (File arquivo : listarArquivosSalvos()) if (arquivo.getName().equals(normeArquivo)) return true;
+            System.out.println("Servidor: Arquivo não encontrado!");
+            return false;
+        }
+        else {
+            System.out.println("Servidor: Diretório de arquivos salvos inexistente ou vazio!");
+            return false;
+        }
     }
 
     private File[] listarArquivosSalvos() {
         String caminhoPadrao = "src/main/resources/distribuidos/sistemas/projetoprimeiranota/files/";
         File diretorio = new File(caminhoPadrao);
 
-        if(diretorio.exists() && diretorio.isDirectory()) {
-            System.out.println("Listagem de arquivo bem sucedida!");
-            return diretorio.listFiles();
-        } else {
-            System.out.println("Listagem de arquivo mau sucedida!");
-            return null;
-        }
+        if(diretorio.exists() && diretorio.isDirectory()) return diretorio.listFiles();
+        else return null;
     }
 }
